@@ -59,9 +59,8 @@ dev = [
 soc-connectors = "soc_connectors.cli:main"
 
 [project.urls]
-# CHANGE-ME before publishing: replace CHANGE-ME with your GitHub handle.
-Homepage = "https://github.com/CHANGE-ME/soc-connector-framework"
-Issues = "https://github.com/CHANGE-ME/soc-connector-framework/issues"
+Homepage = "https://github.com/laffet-takwa/soc-connector-framework"
+Issues = "https://github.com/laffet-takwa/soc-connector-framework/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/soc_connectors"]
