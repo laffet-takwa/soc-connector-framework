@@ -9,6 +9,10 @@ aliases so the output is what a normal ECS consumer expects.
 Field sets are nested objects rather than flattened dotted keys. Elasticsearch maps
 ``{"source": {"ip": ...}}`` and ``"source.ip": ...`` to the same field, so the nested form is
 both valid ECS and easier to type-check.
+
+The names below are ECS's own, verbatim — `cloud.region`, not a `cloud.region_name` shorthand —
+and that has to be checked rather than assumed: because the models keep unknown extra fields, a
+wrong name is never an error, it is a field that silently indexes nowhere.
 """
 
 from __future__ import annotations
@@ -146,14 +150,22 @@ class Endpoint(_Model):
     nat: NatInfo | None = None
 
 
+class UserGroupFieldSet(_Model):
+    """ECS models `user.group` as an object, so a source that only names the group fills `name`."""
+
+    name: str | None = None
+    id: str | None = None
+    domain: str | None = None
+
+
 class UserFieldSet(_Model):
     name: str | None = None
     id: str | None = None
     email: str | None = None
     full_name: str | None = None
-    type: str | None = None
+    domain: str | None = None
     roles: list[str] = Field(default_factory=list)
-    group: str | None = None
+    group: UserGroupFieldSet | None = None
 
     @field_validator("roles", mode="before")
     @classmethod
@@ -161,13 +173,21 @@ class UserFieldSet(_Model):
         return _string_list(value)
 
 
+class CloudAccountFieldSet(_Model):
+    id: str | None = None
+    name: str | None = None
+
+
+class CloudServiceFieldSet(_Model):
+    name: str | None = None
+
+
 class CloudFieldSet(_Model):
     provider: str | None = None
-    region_name: str | None = None
-    account_id: str | None = None
-    account_name: str | None = None
-    service_name: str | None = None
-    zone_name: str | None = None
+    region: str | None = None
+    availability_zone: str | None = None
+    account: CloudAccountFieldSet | None = None
+    service: CloudServiceFieldSet | None = None
 
 
 class NetworkFieldSet(_Model):
@@ -176,7 +196,8 @@ class NetworkFieldSet(_Model):
     transport: str | None = None
     """Layer-4 name as ECS expects it: ``tcp``, ``udp``, ``icmp``."""
 
-    packet: int | None = None
+    packets: int | None = None
+    bytes: int | None = None
     community_id: str | None = None
 
     @field_validator("direction", mode="before")

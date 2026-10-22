@@ -4,13 +4,17 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime, timedelta
+from typing import get_args
 
 import pytest
+from pydantic import BaseModel
 
 from soc_connectors.exceptions import MalformedEventError
 from soc_connectors.schema.ecs_models import (
     ECS_VERSION,
+    CloudAccountFieldSet,
     CloudFieldSet,
+    CloudServiceFieldSet,
     EcsEvent,
     Endpoint,
     EventCategory,
@@ -20,9 +24,11 @@ from soc_connectors.schema.ecs_models import (
     NatInfo,
     NetworkDirection,
     UserFieldSet,
+    UserGroupFieldSet,
     build_event,
     to_document,
 )
+from soc_connectors.schema.mapping import from_flat
 from soc_connectors.schema.redaction import RedactionSettings
 
 pytestmark = pytest.mark.unit
@@ -188,7 +194,10 @@ def test_build_event_reports_schema_problems_as_malformed() -> None:
 
 def test_redaction_is_applied_at_serialisation_only() -> None:
     event = build_event(
-        **{"user": UserFieldSet(name="j.doe"), "cloud": CloudFieldSet(account_id="123456789012")}
+        **{
+            "user": UserFieldSet(name="j.doe"),
+            "cloud": CloudFieldSet(account=CloudAccountFieldSet(id="123456789012")),
+        }
     )
     plain = to_document(event)
     masked = to_document(
@@ -225,3 +234,97 @@ def test_field_sets_are_reusable_models() -> None:
 def test_out_of_range_port_is_rejected() -> None:
     with pytest.raises(MalformedEventError):
         build_event(**{"source": {"port": 70000}})
+
+
+#: Leaf names exactly as ECS 9.5.0 defines them (checked against the `cloud`, `user` and
+#: `network` entries in generated/ecs/ecs_nested.yml).
+ECS_LEAF_NAMES = {
+    "cloud": {"provider", "region", "availability_zone", "account", "service"},
+    "cloud.account": {"id", "name"},
+    "cloud.service": {"name"},
+    "user": {"name", "id", "email", "full_name", "domain", "roles", "group"},
+    "user.group": {"name", "id", "domain"},
+    "network": {"direction", "protocol", "transport", "packets", "bytes", "community_id"},
+}
+
+
+@pytest.mark.parametrize(("field_set", "expected"), sorted(ECS_LEAF_NAMES.items()))
+def test_declared_names_are_the_ecs_names_not_a_shorthand(
+    field_set: str, expected: set[str]
+) -> None:
+    """`extra="allow"` makes a wrong field name silent, so the names themselves need a test.
+
+    A model attribute named `cloud.region_name` validates, serialises and indexes nowhere: no
+    consumer errors, the field simply never arrives. That is why this asserts the declared names
+    against ECS rather than only testing that documents build.
+    """
+    assert set(_field_set_model(field_set).model_fields) == expected
+
+
+def _field_set_model(path: str) -> type[BaseModel]:
+    """Walk a dotted path to its model, unwrapping the ``| None`` in each annotation."""
+    model: type[BaseModel] = EcsEvent
+    for part in path.split("."):
+        candidates = [
+            arg
+            for arg in get_args(model.model_fields[part].annotation)
+            if isinstance(arg, type) and issubclass(arg, BaseModel)
+        ]
+        assert len(candidates) == 1, f"{path!r}: {part!r} is not exactly one nested field set"
+        model = candidates[0]
+    return model
+
+
+def test_a_cloud_event_serialises_with_ecs_paths() -> None:
+    document = to_document(
+        from_flat(
+            {
+                "@timestamp": BASE_TIME,
+                "cloud.provider": "aws",
+                "cloud.region": "eu-central-1",
+                "cloud.account.id": "123456789012",
+                "cloud.service.name": "signin",
+                "user.group.name": "auditors",
+                "network.packets": 4,
+            }
+        )
+    )
+    assert document["cloud"] == {
+        "provider": "aws",
+        "region": "eu-central-1",
+        "account": {"id": "123456789012"},
+        "service": {"name": "signin"},
+    }
+    assert document["user"]["group"] == {"name": "auditors"}
+    assert document["network"]["packets"] == 4
+
+
+def test_nested_field_sets_can_be_built_directly_as_well_as_from_flat() -> None:
+    """A normalizer may hand over models instead of dotted paths; both serialise the same way."""
+    event = build_event(
+        **{
+            "@timestamp": BASE_TIME,
+            "cloud": CloudFieldSet(
+                provider="aws", region="eu-central-1", service=CloudServiceFieldSet(name="ec2")
+            ),
+            "user": UserFieldSet(name="j.doe", group=UserGroupFieldSet(name="auditors")),
+        }
+    )
+    document = to_document(event)
+    assert document["cloud"] == {
+        "provider": "aws",
+        "region": "eu-central-1",
+        "service": {"name": "ec2"},
+    }
+    assert document["user"] == {"name": "j.doe", "group": {"name": "auditors"}}
+
+
+def test_an_obsolete_shorthand_stays_an_extra_field_and_is_visible() -> None:
+    """Documents are not silently rewritten: an old `cloud.account_id` input is not renamed.
+
+    The pipeline drops nothing and invents nothing, so a config or fixture still using the
+    pre-correction name produces both keys, and the duplicate is what an operator notices.
+    """
+    document = to_document(from_flat({"cloud.account_id": "123456789012"}))
+    assert document["cloud"] == {"account_id": "123456789012"}
+    assert "account" not in document["cloud"]
