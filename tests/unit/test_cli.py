@@ -201,7 +201,9 @@ def test_validate_config_summarises_without_running_anything(
         "version",
     ]
     assert summary["sources"][0]["id"] == "demo"
-    assert summary["registry"]["sources"] == ["sample_jsonl"]
+    sources = summary["registry"]["sources"]
+    assert sources == sorted(sources)
+    assert {"sample_jsonl", "cloudtrail"} <= set(sources)
     assert summary["registry"]["destinations"] == ["sink"]
 
 

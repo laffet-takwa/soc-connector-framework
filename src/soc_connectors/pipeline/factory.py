@@ -18,6 +18,7 @@ from typing import Any, TypeVar
 
 from soc_connectors.config import AppConfig, DestinationConfig, SourceConfig
 from soc_connectors.connectors.base import BaseConnector, ConnectorContext
+from soc_connectors.connectors.cloudtrail import CloudTrailConnector
 from soc_connectors.connectors.sample_jsonl import SampleJsonlConnector
 from soc_connectors.exceptions import ConfigError
 from soc_connectors.forwarders.base import BaseForwarder, ForwarderContext
@@ -66,6 +67,7 @@ def register_forwarder(cls: type[BaseForwarder]) -> type[BaseForwarder]:
 def register_builtins() -> None:
     """Idempotent registration of the types shipped in this package."""
     register_connector(SampleJsonlConnector)
+    register_connector(CloudTrailConnector)
     register_forwarder(SinkForwarder)
 
 

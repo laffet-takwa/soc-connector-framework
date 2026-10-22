@@ -198,9 +198,9 @@ def test_an_unknown_source_type_is_reported_with_the_known_names(
     clean_registries: None, config: Callable[..., AppConfig]
 ) -> None:
     register_builtins()
-    source = SourceConfig.model_validate({"id": "ct", "type": "cloudtrail"})
+    source = SourceConfig.model_validate({"id": "hec", "type": "splunk_hec"})
     with pytest.raises(
-        ConfigError, match=r"unknown source type 'cloudtrail'; known: .*sample_jsonl"
+        ConfigError, match=r"unknown source type 'splunk_hec'; known: .*sample_jsonl"
     ):
         build_connector(config(), source, metrics=Metrics())
 

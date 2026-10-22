@@ -239,6 +239,21 @@ class RelatedFieldSet(_Model):
         return _string_list(value)
 
 
+class ErrorFieldSet(_Model):
+    """A cloud API's own failure, which is the payload of most detection rules about that API."""
+
+    code: str | None = None
+    message: str | None = None
+
+
+class UserAgentFieldSet(_Model):
+    original: str | None = None
+
+
+class UrlFieldSet(_Model):
+    domain: str | None = None
+
+
 class EcsEvent(_Model):
     """One normalised event. Forwarders must accept this and nothing else."""
 
@@ -261,6 +276,9 @@ class EcsEvent(_Model):
     rule: RuleFieldSet | None = None
     tls: TlsFieldSet | None = None
     related: RelatedFieldSet | None = None
+    error: ErrorFieldSet | None = None
+    user_agent: UserAgentFieldSet | None = None
+    url: UrlFieldSet | None = None
 
     @field_validator("timestamp", mode="before")
     @classmethod

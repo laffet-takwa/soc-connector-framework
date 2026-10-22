@@ -245,6 +245,9 @@ ECS_LEAF_NAMES = {
     "user": {"name", "id", "email", "full_name", "domain", "roles", "group"},
     "user.group": {"name", "id", "domain"},
     "network": {"direction", "protocol", "transport", "packets", "bytes", "community_id"},
+    "error": {"code", "message"},
+    "user_agent": {"original"},
+    "url": {"domain"},
 }
 
 
