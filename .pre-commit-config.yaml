@@ -1,0 +1,30 @@
+---
+# Local hooks only: the same binaries and versions the project pins in
+# [project.optional-dependencies].dev, so CI and a developer machine cannot drift.
+# Install with: uv run --extra dev python -m pre_commit install
+minimum_pre_commit_version: "3.5.0"
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff check --fix
+        entry: uv run --extra dev ruff check --fix
+        language: system
+        types_or: [python, pyi]
+      - id: ruff-format
+        name: ruff format --check
+        entry: uv run --extra dev ruff format --check
+        language: system
+        types_or: [python, pyi]
+      - id: mypy
+        name: mypy
+        entry: uv run --extra dev python -m mypy
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: no-hardcoded-secrets
+        name: no hardcoded secrets
+        entry: uv run python scripts/check_no_secrets.py
+        language: system
+        pass_filenames: false
+        always_run: true

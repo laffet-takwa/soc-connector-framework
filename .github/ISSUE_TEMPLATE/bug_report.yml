@@ -1,0 +1,37 @@
+---
+name: Bug report
+description: Something does not behave as documented
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: Actual behaviour, with the log lines you saw (JSON output is fine to paste).
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+      description: Which part of the README, docstring or field mapping says it should work this way.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction
+      description: >
+        Command plus the config file and the smallest fixture that triggers it.
+        Use synthetic values only - never paste real account ids, tenant ids, IPs of
+        production systems or credentials.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment
+      description: OS, Python version, connector and version (`uv run soc-connectors --version`).
+    validations:
+      required: true
