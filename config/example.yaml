@@ -1,0 +1,66 @@
+version: 1
+
+# ---------------------------------------------------------------------------
+# Reference configuration. Every key here has a default in
+# src/soc_connectors/config.py, so this file only needs the values you change.
+#
+# Secrets are never written in this file. A ${VAR} reference is replaced from the
+# process environment while the config is still unvalidated; a missing variable is a
+# startup error naming the variable, never its value. See .env.example for the list.
+# ---------------------------------------------------------------------------
+
+pipeline:
+  poll_interval_seconds: 30
+  batch_size: 200
+  max_pages_per_cycle: 20
+  state_dir: data/state
+  dead_letter_dir: data/dead_letter
+  log_level: INFO
+  log_format: json
+  shutdown_grace_seconds: 10
+  dedup_window: 2000
+
+retry:
+  max_attempts: 4
+  base_wait_seconds: 0.5
+  max_wait_seconds: 30
+  jitter_ratio: 0.5
+
+redaction:
+  fields: []
+  mode: mask
+  ip_mode: keep
+  keep_raw: true
+  max_raw_bytes: 8192
+
+sources:
+  # The reference connector: JSON Lines whose keys are already ECS paths. It needs no
+  # credentials and no network, which is why it is what `--once` and the CI demo run.
+  # M2-M4 add cloudtrail (S3 or local files), entra (Microsoft Graph) and syslog.
+  # Destination types are names, not YAML literals: use `sink`, not `null`.
+  - id: sample
+    type: sample_jsonl
+    enabled: true
+    batch_size: 50
+    options:
+      path: data/sample/events.jsonl
+      dataset: demo.sample.events
+      id_field: record_id
+      max_records_per_cycle: 500
+
+destinations:
+  - id: local_records
+    type: sink
+    enabled: true
+    severity_min: 0
+    batch_size: 100
+    options:
+      # Exactly the documents a real destination would have received, ECS and redacted.
+      record_file: data/output/events.jsonl
+
+  - id: high_severity_only
+    type: sink
+    enabled: true
+    severity_min: 60
+    options:
+      record_file: data/output/alerts.jsonl

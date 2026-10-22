@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import re
 import sys
+from collections.abc import Iterator
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -58,6 +59,17 @@ PLACEHOLDER = re.compile(
 )
 # Anything shorter than this is a flag, an enum or a docstring fragment, not a key.
 MIN_SUSPICIOUS_LENGTH = 6
+# An unquoted right-hand side is only a literal if it is shaped like one. `self._tokens =
+# float(self.burst)` is a rate-limit bucket, and `token = self._next_token(cursor)` is program
+# state; parentheses, spaces and dotted names are code, so they are not findings.
+KEY_SHAPED_VALUE = re.compile(r"[A-Za-z0-9+/=_-]{8,}")
+
+
+def looks_like_credential_literal(value: str) -> bool:
+    """Quoted text is a literal; unquoted text must also avoid looking like an expression."""
+    if value[:1] in {'"', "'"}:
+        return True
+    return KEY_SHAPED_VALUE.fullmatch(value) is not None
 
 
 def should_scan(path: Path) -> bool:
@@ -89,12 +101,39 @@ def findings_for(path: Path) -> list[str]:
             continue
         if len(value) < MIN_SUSPICIOUS_LENGTH:
             continue
+        if not looks_like_credential_literal(value):
+            continue
         findings.append(f"{rel}:{number}: possible credential -> {value[:4]}…")
     return findings
 
 
+def iter_files(root: Path) -> Iterator[Path]:
+    """Yield every regular file under ``root`` without descending into caches and virtualenvs.
+
+    Pruning during the walk rather than after it is the point: ``root.rglob("*")`` enumerates
+    all of ``.venv`` — tens of thousands of paths — and the caller then throws them away,
+    which costs the check ~20 seconds on a Windows checkout instead of a fraction of one.
+    Symlinks are skipped, so a linked directory inside the repo cannot loop the walk.
+    """
+    pending = [root]
+    while pending:
+        directory = pending.pop()
+        try:
+            entries = list(directory.iterdir())
+        except OSError:
+            continue
+        for entry in entries:
+            if entry.is_symlink():
+                continue
+            if entry.is_dir():
+                if entry.name not in EXEMPT_DIRS:
+                    pending.append(entry)
+                continue
+            yield entry
+
+
 def main(argv: list[str]) -> int:
-    paths = [p for p in ROOT.rglob("*") if p.is_file() and should_scan(p)]
+    paths = [path for path in iter_files(ROOT) if should_scan(path)]
     if argv:
         wanted = {Path(arg).resolve() for arg in argv}
         paths = [p for p in paths if p.resolve() in wanted]

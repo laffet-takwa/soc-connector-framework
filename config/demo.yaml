@@ -1,0 +1,49 @@
+version: 1
+
+# End-to-end demo wiring: one synthetic source, two destinations, no credentials.
+# `docker compose up` (M6) runs this file and appends to data/sample/events.jsonl while the
+# pipeline polls, so the demo shows events arriving rather than a replay of a fixed file.
+#
+# M5 replaces the `null` destinations with elasticsearch / wazuh_file / thehive_alert. The
+# severity floor below is the rule that stays: only high and critical events become alerts.
+
+pipeline:
+  poll_interval_seconds: 2
+  batch_size: 25
+  state_dir: data/state
+  dead_letter_dir: data/dead_letter
+  log_level: INFO
+  log_format: console
+  dedup_window: 500
+
+retry:
+  max_attempts: 3
+  base_wait_seconds: 0.2
+  max_wait_seconds: 5
+
+redaction:
+  fields: []
+  ip_mode: keep
+  keep_raw: true
+
+sources:
+  - id: demo-file
+    type: sample_jsonl
+    options:
+      path: data/sample/events.jsonl
+      dataset: demo.firewall.events
+      id_field: record_id
+      max_records_per_cycle: 25
+
+destinations:
+  - id: demo-index
+    type: sink
+    severity_min: 0
+    options:
+      record_file: data/output/demo-events.jsonl
+
+  - id: demo-alerts
+    type: sink
+    severity_min: 60
+    options:
+      record_file: data/output/demo-alerts.jsonl

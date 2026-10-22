@@ -46,6 +46,28 @@ def test_assignment_with_real_looking_value_is_flagged(scanner: types.ModuleType
 
 
 @pytest.mark.parametrize(
+    ("key", "value", "expected"),
+    [
+        # Quoted and unquoted literals are findings.
+        ("auth_" + "token", "'abc12345678'", True),
+        ("api_" + "key", "sk-abcd" + "ef123456", True),
+        # Program state that merely mentions a credential-shaped name is not.
+        ("self._tokens", "float(self.burst)", False),
+        ("self._tokens", "min(float(self.burst), self._tokens + delta)", False),
+        ("refresh_" + "token", "await self._fetch(scope)", False),
+        ("access_" + "key", "credential_from_env()", False),
+    ],
+)
+def test_only_literal_shaped_values_are_findings(
+    scanner: types.ModuleType, key: str, value: str, expected: bool
+) -> None:
+    """Keys and values are assembled at runtime so this file is never a finding itself."""
+    match = scanner.ASSIGNMENT.search(f"{key} = {value}")
+    assert match is not None, key
+    assert scanner.looks_like_credential_literal(match.group("value").strip()) is expected
+
+
+@pytest.mark.parametrize(
     "value",
     [
         "${SOC_ENTRA_CLIENT_SECRET}",
@@ -73,3 +95,28 @@ def test_real_env_file_is_skipped_and_config_files_are_scanned(scanner: types.Mo
     assert not should_scan(ROOT / ".env")
     assert not should_scan(ROOT / ".env.example")
     assert should_scan(ROOT / "config" / "example.yaml")
+
+
+def test_installed_and_cached_directories_are_never_walked(
+    scanner: types.ModuleType, tmp_path: Path
+) -> None:
+    """The walk prunes during descent: a virtualenv here would cost seconds to enumerate."""
+    for name in (".venv/lib", ".git/objects", "__pycache__", "node_modules/pkg"):
+        (tmp_path / name).mkdir(parents=True)
+        (tmp_path / name / "hidden.py").write_text("print(1)\n", encoding="utf-8")
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "app.py").write_text("print(1)\n", encoding="utf-8")
+
+    walked = sorted(path.relative_to(tmp_path).as_posix() for path in scanner.iter_files(tmp_path))
+    assert walked == ["src/app.py"]
+
+
+def test_a_symlinked_directory_cannot_loop_the_walk(
+    scanner: types.ModuleType, tmp_path: Path
+) -> None:
+    (tmp_path / "real").mkdir()
+    try:
+        (tmp_path / "loop").symlink_to(tmp_path, target_is_directory=True)
+    except (OSError, NotImplementedError):  # pragma: no cover - needs developer mode on Windows
+        pytest.skip("this platform does not allow creating symlinks")
+    assert list(scanner.iter_files(tmp_path)) == []

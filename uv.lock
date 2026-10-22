@@ -1514,6 +1514,7 @@ dev = [
     { name = "pytest-cov" },
     { name = "ruff" },
     { name = "types-boto3" },
+    { name = "types-python-dateutil" },
     { name = "types-pyyaml" },
 ]
 
@@ -1533,6 +1534,7 @@ requires-dist = [
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.5" },
     { name = "tenacity", specifier = ">=8.2,<10" },
     { name = "types-boto3", marker = "extra == 'dev'" },
+    { name = "types-python-dateutil", marker = "extra == 'dev'" },
     { name = "types-pyyaml", marker = "extra == 'dev'" },
 ]
 provides-extras = ["dev"]
@@ -1630,6 +1632,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/a9/f8/6b419ce64259a060a602435ab2790a63c724f3f0c6539390a16d2cd752fd/types_boto3-1.43.117.tar.gz", hash = "sha256:9b68964628fe5eeec00257bdbff85ca06ecd88229c9f1776394aefad95d232d6", size = 105630, upload-time = "2026-10-21T22:27:53.849Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/cb/e8/1aa0a25f07df1d411b61abd64947822960b8aa4d3aa2c6344ca5d7b4f7ae/types_boto3-1.43.117-py3-none-any.whl", hash = "sha256:d69bfe4fb77acfb52c5fa143e6ffc6fb71ed0939445d3f8083c02dfe18343af2", size = 71819, upload-time = "2026-10-21T22:27:49.928Z" },
+]
+
+[[package]]
+name = "types-python-dateutil"
+version = "2.9.0.20261021"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/65/66/4783d826afabb22f29f47b22514298efaedee4718eac0a76c37bea381a07/types_python_dateutil-2.9.0.20261021.tar.gz", hash = "sha256:62d66fcdd293e38745eae644e5da4cb399b98799c0ae61f03a54896fb51b3140", size = 17792, upload-time = "2026-10-21T06:42:00.127Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/fb/06/acccde409bf5719a80d6653659fb23aad1784095348df4ffd0212510a6d5/types_python_dateutil-2.9.0.20261021-py3-none-any.whl", hash = "sha256:12aab3bdfe55e1d9de7f54301e025d6276ce17e6a08e31644f2202d59c8d1fca", size = 18509, upload-time = "2026-10-21T06:41:58.922Z" },
 ]
 
 [[package]]

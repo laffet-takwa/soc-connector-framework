@@ -50,6 +50,7 @@ dev = [
   "mypy>=1.10",
   "pre-commit>=3.7",
   "types-PyYAML",
+  "types-python-dateutil",
   "types-boto3",
   "moto>=5.0",
 ]
@@ -88,7 +89,9 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["ARG", "PTH", "TRY", "S"]
+# tests/**: assertions compare against literal fixtures, and a pytest fixture receives its
+# dependencies as positional parameters by design.
+"tests/**" = ["ARG", "PTH", "TRY", "S", "PLR2004", "PLR0917"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["soc_connectors"]
